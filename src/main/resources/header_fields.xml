@@ -1,0 +1,23 @@
+<fields>
+    <field name="pageSize" offset="16" size="2"/>
+    <field name="readVersion" offset="18" size="1"/>
+    <field name="writeVersion" offset="19" size="1"/>
+    <field name="reservedSpace" offset="20" size="1"/>
+    <field name="maxPayloadFrac" offset="21" size="1"/>
+    <field name="minPayloadFrac" offset="22" size="1"/>
+    <field name="leafPayloadFrac" offset="23" size="1"/>
+    <field name="fileChangeCounter" offset="24" size="4"/>
+    <field name="pageCount" offset="28" size="4"/>
+    <field name="firstFreelistTrunkPage" offset="32" size="4"/>
+    <field name="totalFreelistPages" offset="36" size="4"/>
+    <field name="schemaCookie" offset="40" size="4"/>
+    <field name="schemaFormat" offset="44" size="4"/>
+    <field name="defaultCacheSize" offset="48" size="4"/>
+    <field name="largestRootBtreePage" offset="52" size="4"/>
+    <field name="textEncodingId" offset="56" size="4"/>
+    <field name="userVersion" offset="60" size="4"/>
+    <field name="incrementalVacuum" offset="64" size="4"/>
+    <field name="applicationId" offset="68" size="4"/>
+    <field name="versionValidFor" offset="92" size="4"/>
+    <field name="sqliteVersion" offset="96" size="4"/>
+</fields>

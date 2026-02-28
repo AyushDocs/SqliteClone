@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+#set -e
 (
   cd "$(dirname "$0")"
   mvn -q -B package -Ddir=/tmp/codecrafters-build-sqlite-java
