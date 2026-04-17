@@ -1,62 +1,54 @@
 package personal.projects.sqlite.utils;
 
-import personal.projects.sqlite.entities.Database;
-import personal.projects.sqlite.entities.HeaderField;
+import static personal.projects.sqlite.utils.SQLiteHeaderLayout.LAYOUT;
 
-import java.nio.ByteBuffer;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteOrder;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
+
+import personal.projects.sqlite.entities.Database.HeaderValue;
+import personal.projects.sqlite.entities.Database.HeaderValue.NumericValue;
+import personal.projects.sqlite.entities.Database.HeaderValue.StringValue;
 
 public class DatabaseHeaderParser {
 
-    public static void parseHeader(byte[] bytes, Database db) throws Exception {
-        CustomReader reader=new CustomReader(bytes);
-        reader.goTo(0);
-        Map<String,Integer> headerFields = new HashMap<>();
-        Map<String,HeaderField<?>> xmlReadHeaders=XmlHeaderFieldParser.parseHeaderFields("header_fields.xml");
-        for (Entry<String,HeaderField<?>> entry : xmlReadHeaders.entrySet() ) {
-            int offset = entry.getValue().getOffset();
-            int size = entry.getValue().getSize();
-            int value;
-            if(size==1)
-                value=reader.readByte();
-            else if(size==2)
-                value=reader.readShort();
-            else if(size==4)
-                value=reader.readInt();
-            else
-                throw new IllegalArgumentException("illegal argument passed");
+    private static final ValueLayout.OfShort SHORT_BE = ValueLayout.JAVA_SHORT.withOrder(ByteOrder.BIG_ENDIAN).withByteAlignment(1);
+    private static final ValueLayout.OfInt INT_BE = ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN).withByteAlignment(1);
+    private static final ValueLayout.OfLong LONG_BE = ValueLayout.JAVA_LONG.withOrder(ByteOrder.BIG_ENDIAN).withByteAlignment(1);
 
-            headerFields.put(entry.getKey(),value);
+    public static Map<String, HeaderValue> parse(byte[] headerBytes) {
+        Map<String, HeaderValue> headerMap = new HashMap<>();
+        MemorySegment segment = MemorySegment.ofArray(headerBytes);
+
+        for (MemoryLayout member : LAYOUT.memberLayouts()) {
+            member.name().ifPresent(name -> {
+                if (name.equals("magic") || name.equals("reserved")) return;
+
+                HeaderValue value = getValue(segment, member);
+                headerMap.put(name, value);
+            });
         }
 
-        // Also handle text encoding
-        int encodingId = headerFields.get("textEncodingId");
-        db.textEncoding=getEncoding(encodingId);
+        // Special handling for the 64k pageSize logic
+        long pageSize = ((NumericValue) headerMap.getOrDefault("pageSize", new NumericValue(0))).value() & 0xFFFF;
+        if (pageSize == 1) pageSize = 65536;
+        headerMap.put("pageSize", new NumericValue(pageSize));
 
-        reader.goTo(72);
-        byte[] reserved = reader.readNBytes(20);
-        db.reserved = bytesToHex(reserved);
-        db.headerFields=headerFields;
+        return headerMap;
     }
 
-
-    private static Charset getEncoding(int encoding) {
-        return switch (encoding) {
-            case 2 -> StandardCharsets.UTF_16LE;
-            case 3 -> StandardCharsets.UTF_16BE;
-            default -> StandardCharsets.UTF_8;
+    private static HeaderValue getValue(MemorySegment segment, MemoryLayout member) {
+        long offset = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement(member.name().get()));
+        
+        return switch (member) {
+            case ValueLayout.OfByte b -> new NumericValue((long) segment.get(b, offset));
+            case ValueLayout.OfShort s -> new NumericValue((long) segment.get(SHORT_BE, offset));
+            case ValueLayout.OfInt i -> new NumericValue((long) segment.get(INT_BE, offset));
+            case ValueLayout.OfLong l -> new NumericValue(segment.get(LONG_BE, offset));
+            default -> null; // Sequences like 'magic' are handled elsewhere
         };
-    }
-
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes)
-            sb.append(String.format("%02x ", b));
-        return sb.toString().trim();
     }
 }

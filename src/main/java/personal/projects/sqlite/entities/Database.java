@@ -1,52 +1,74 @@
 package personal.projects.sqlite.entities;
 
-import personal.projects.sqlite.utils.DatabaseHeaderParser;
-import personal.projects.sqlite.utils.SchemaTableParser;
-
-import java.io.FileInputStream;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import java.util.HashMap;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.util.List;
 import java.util.Map;
+import personal.projects.sqlite.commands.Command;
+import personal.projects.sqlite.commands.CommandContext;
+import personal.projects.sqlite.commands.CommandResult;
+import personal.projects.sqlite.utils.DatabaseHeaderParser;
 
-public class Database {
+/**
+ * Represents the SQLite database session.
+ */
+public class Database implements AutoCloseable {
 
-    public static final int HEADER_SIZE = 100;
-    public Map<String,Integer> headerFields;
-    public Charset textEncoding;
-    public List<Page> pages;
-    public String reserved;
-    public String databaseFilePath;
-    public List<String> tableNames;
+    public final MemorySegment memoryMap;
+    public final int pageSize;
+    public final Map<String, HeaderValue> header;
+    private final Arena arena;
+    private final FileChannel channel;
 
-    public Database(String databaseFilePath) {
-        this.headerFields = new HashMap<>();
-        this.databaseFilePath=databaseFilePath;
-        try(FileInputStream fis = new FileInputStream(databaseFilePath)){
-            extractHeader(fis);
-            int pageSize=this.getField("pageSize");
-            byte[] schemaBytes = new byte[pageSize];
-            requireBytesPerSection(fis.read(schemaBytes), pageSize, "Failed to read full schema table");
-            SchemaTableParser.parseSchema(schemaBytes,this);
-        }
-        catch(Exception e){
-            e.printStackTrace();
-        }
+    private Database(MemorySegment memoryMap, int pageSize, Map<String, HeaderValue> header, Arena arena, FileChannel channel) {
+        this.memoryMap = memoryMap;
+        this.pageSize = pageSize;
+        this.header = header;
+        this.arena = arena;
+        this.channel = channel;
     }
 
-    private void extractHeader(FileInputStream fis) throws Exception {
-        byte[] header = new byte[HEADER_SIZE];
-        requireBytesPerSection(fis.read(header), HEADER_SIZE,"header bytes couldn't be read completely");
-        DatabaseHeaderParser.parseHeader(header,this);
+    /**
+     * Factory method to open a database. Uses READ_WRITE mode to support insertions.
+     */
+    public static Database open(String path) throws IOException {
+        Arena arena = Arena.ofShared();
+        FileChannel channel = FileChannel.open(Path.of(path), 
+                StandardOpenOption.READ, 
+                StandardOpenOption.WRITE);
+        
+        // Map the entire file for direct hardware access
+        MemorySegment memoryMap = channel.map(FileChannel.MapMode.READ_WRITE, 0, channel.size(), arena);
+        
+        // Parse the header (first 100 bytes)
+        byte[] headerBytes = memoryMap.asSlice(0, 100).toArray(java.lang.foreign.ValueLayout.JAVA_BYTE);
+        Map<String, HeaderValue> header = DatabaseHeaderParser.parse(headerBytes);
+        
+        int pageSize = (int) ((HeaderValue.NumericValue) header.get("pageSize")).value();
+
+        return new Database(memoryMap, pageSize, header, arena, channel);
     }
 
-    private static void requireBytesPerSection(int bytesRead, int len, String message) {
-        if (bytesRead != len)
-            throw new  RuntimeException(message);
+    public CommandResult execute(Command command, List<String> parameters) {
+        return command.execute(new CommandContext(this, parameters, new java.util.HashMap<>()));
     }
 
-    public int getField(String name) {
-        return headerFields.get(name);
+    @Override
+    public void close() throws IOException {
+        // Arena.close() unmaps the file automatically
+        arena.close();
+        channel.close();
+    }
+
+    /**
+     * Sealed interface for database header values (metadata).
+     */
+    public sealed interface HeaderValue permits HeaderValue.NumericValue, HeaderValue.StringValue {
+        record NumericValue(long value) implements HeaderValue {}
+        record StringValue(String value) implements HeaderValue {}
     }
 }

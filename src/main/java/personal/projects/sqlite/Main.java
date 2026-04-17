@@ -1,42 +1,66 @@
 package personal.projects.sqlite;
 
-import personal.projects.sqlite.commands.Command;
-import personal.projects.sqlite.commands.CommandMap;
-import personal.projects.sqlite.entities.Database;
-import personal.projects.sqlite.exceptions.CommandNotFound;
-import personal.projects.sqlite.exceptions.ReducedNumberOfExceptions;
-
-import java.util.Map;
-
+import java.util.Arrays;
+import java.util.Scanner;
 public class Main {
-  public static void main(String[] args){
-    requireCommandInDbFile(args);
-    String command = getCommandName(args);
-    Map<String, Command> commandMap = CommandMap.getCommands();
-    requireCommandInKnownCommands(commandMap, command);
-    String dbfilePath = getDatabaseFileName(args);
-    Database database=new Database(dbfilePath);
-    String output=commandMap.get(command).execute(args,database);
-    System.out.println(output);
-  }
 
-  private static String getCommandName(String[] args) {
-      return args[1];
-  }
+    private static final String RESET = "\u001B[0m";
+    private static final String GREEN = "\u001B[32m";
+    private static final String BLUE = "\u001B[34m";
 
-  private static String getDatabaseFileName(String[] args) {
-      return args[0];
-  }
+    public static void main(String[] args) {
+        if (args.length < 1) {
+            System.err.println("Usage: java AeroSQL <db_path> [command]");
+            System.exit(1);
+        }
 
-  private static void requireCommandInKnownCommands(Map<String, Command> commandMap, String command) {
-    if(!commandMap.containsKey(command)){
-        System.out.println("Missing or invalid command passed: " + command);
-        throw new CommandNotFound(command);
+        String dbPath = args[0];
+        AeroSQL app = new AeroSQL();
+
+        if (args.length == 1) {
+            runRepl(app, dbPath);
+        } else {
+            String commandName = args[1];
+            app.run(dbPath, commandName, Arrays.asList(args).subList(2, args.length));
+        }
     }
-  }
 
-  private static void requireCommandInDbFile(String[] args){
-    if (args.length < 2)
-      throw new ReducedNumberOfExceptions("Missing <database path> and <command>");
-  }
+    private static void runRepl(AeroSQL app, String dbPath) {
+        System.out.println(GREEN + "Welcome to AeroSQL Engine (v1.0)" + RESET);
+        System.out.println("Connected to: " + BLUE + dbPath + RESET);
+        System.out.println("Type SQL or commands. Press " + GREEN + "Ctrl+D" + RESET + " to exit.");
+        System.out.println();
+
+        java.io.Console console = System.console();
+        if (console == null) {
+            // Fallback for non-interactive environments
+            Scanner scanner = new Scanner(System.in);
+            while (true) {
+                System.out.print("aerosql> ");
+                if (!scanner.hasNextLine()) break;
+                app.runCommand(dbPath, scanner.nextLine());
+            }
+            return;
+        }
+
+        while (true) {
+            String line = console.readLine("aerosql> ");
+            if (line == null) {
+                System.out.println("\nGoodbye!");
+                break;
+            }
+
+            line = line.trim();
+            if (line.isEmpty()) continue;
+            if (line.equalsIgnoreCase(".exit") || line.equalsIgnoreCase(".quit")) {
+                break;
+            }
+
+            try {
+                app.runCommand(dbPath, line);
+            } catch (Exception e) {
+                System.err.println("Error: " + e.getMessage());
+            }
+        }
+    }
 }
