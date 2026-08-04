@@ -2,7 +2,7 @@
 
 A lightweight Java implementation of a SQLite-compatible database engine, built with a focus on understanding low-level database internals like binary file parsing, B-Trees, and SQL execution.
 
-![Java](https://img.shields.io/badge/Java-17-orange)
+![Java](https://img.shields.io/badge/Java-21-orange)
 ![Maven](https://img.shields.io/badge/Maven-3.x-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -15,7 +15,7 @@ A lightweight Java implementation of a SQLite-compatible database engine, built 
 
 ## 🛠️ Prerequisites
 
-- **Java 17** or higher
+- **Java 21** or higher
 - **Maven 3.x**
 - Standard Unix environment (Linux/macOS)
 
@@ -43,7 +43,7 @@ The project includes a `Makefile` for a cleaner CLI experience.
 
 ```bash
 # Build and run
-make run DB=sample.db CMD=".dbinfo"
+make run ARGS="sample.db .dbinfo"
 ```
 
 ### 2. Using Maven Exec Plugin

@@ -3,7 +3,6 @@ package personal.projects.sqlite;
 import personal.projects.sqlite.commands.*;
 import personal.projects.sqlite.entities.Database;
 import personal.projects.sqlite.exceptions.CommandNotFound;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,17 +15,17 @@ public class AeroSQL {
     /**
      * Entry point for a single command line (used by REPL).
      */
-    public void runCommand(String dbPath, String inputLine) {
+    public void runCommand(Database db, String inputLine) {
         if (inputLine == null || inputLine.trim().isEmpty()) return;
 
         String[] tokens = inputLine.trim().split("\\s+");
         String firstToken = tokens[0];
         List<String> remainingTokens = new ArrayList<>(Arrays.asList(tokens).subList(1, tokens.length));
 
-        run(dbPath, firstToken, remainingTokens);
+        run(db, firstToken, remainingTokens);
     }
 
-    public void run(String dbPath, String commandName, List<String> parameters) {
+    public void run(Database db, String commandName, List<String> parameters) {
         String baseCommandName = commandName;
         List<String> actualParameters = new ArrayList<>(parameters);
 
@@ -40,9 +39,9 @@ public class AeroSQL {
         Command command = CommandRegistry.get(finalCommandName)
                 .orElseThrow(() -> new CommandNotFound(finalCommandName));
 
-        try (Database database = Database.open(dbPath)) {
-            CommandResult result = database.execute(command, actualParameters);
-            
+        try {
+            CommandResult result = db.execute(command, actualParameters);
+
             if (result.success()) {
                 System.out.println(result.output());
             } else {

@@ -48,6 +48,37 @@ public class SegmentReader {
         return val;
     }
 
+    public int readByteSigned() {
+        int val = segment.get(ValueLayout.JAVA_BYTE, offset);
+        offset += 1;
+        return val;
+    }
+
+    public int readShortSigned() {
+        int val = segment.get(SHORT_BE, offset);
+        offset += 2;
+        return val;
+    }
+
+    public int readIntSigned() {
+        int val = segment.get(INT_BE, offset);
+        offset += 4;
+        return val;
+    }
+
+    /**
+     * Reads an n-byte (1-8) big-endian signed integer. Sign-extends the result.
+     */
+    public long readSignedIntN(int n) {
+        long val = 0;
+        for (int i = 0; i < n; i++) {
+            val = (val << 8) | (segment.get(ValueLayout.JAVA_BYTE, offset + i) & 0xFF);
+        }
+        offset += n;
+        int shift = 64 - 8 * n;
+        return (val << shift) >> shift;
+    }
+
     public long readLong() {
         long val = segment.get(LONG_BE, offset);
         offset += 8;

@@ -44,7 +44,9 @@ public class BTreeReader {
                 int childPage = reader.readInt();
                 parsePage(childPage, rows);
             }
-            // TODO: parse the right-most child pointer at offset + 8
+            // The right-most child pointer (offset header + 8) is not covered by the cell loop.
+            reader.goTo(btreeHeaderOffset + 8);
+            parsePage(reader.readInt(), rows);
         } else if (pageType == 0x0D) {
             // Table leaf page
             for (int i = 0; i < numCells; i++) {
@@ -102,13 +104,16 @@ public class BTreeReader {
 
     private static Object readNumeric(SegmentReader reader, int type) {
         return switch (type) {
-            case 1 -> (long) reader.readByte();
-            case 2 -> (long) reader.readShort();
-            case 4 -> (long) reader.readInt();
+            case 1 -> (long) reader.readByteSigned();
+            case 2 -> (long) reader.readShortSigned();
+            case 3 -> reader.readSignedIntN(3);
+            case 4 -> (long) reader.readIntSigned();
+            case 5 -> reader.readSignedIntN(6);
             case 6 -> reader.readLong();
+            case 7 -> Double.longBitsToDouble(reader.readLong());
             case 8 -> 0L;
             case 9 -> 1L;
-            default -> 0L; // Simplified
+            default -> 0L; // Reserved or unexpected; treat as zero
         };
     }
 

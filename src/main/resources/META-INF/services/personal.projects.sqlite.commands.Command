@@ -3,3 +3,4 @@ personal.projects.sqlite.commands.TablesCommand
 personal.projects.sqlite.commands.SelectCommand
 personal.projects.sqlite.commands.IndicesCommand
 personal.projects.sqlite.commands.InsertCommand
+personal.projects.sqlite.commands.CreateCommand
