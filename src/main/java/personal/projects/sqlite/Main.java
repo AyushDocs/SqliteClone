@@ -2,6 +2,7 @@ package personal.projects.sqlite;
 
 import personal.projects.sqlite.entities.Database;
 
+import java.io.Console;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -14,6 +15,7 @@ public class Main {
     public static void main(String[] args) {
         if (args.length < 1) {
             System.err.println("Usage: java AeroSQL <db_path> [command]");
+            System.err.println("       java AeroSQL <db_path> \"cmd1; cmd2; ...\"");
             System.exit(1);
         }
 
@@ -33,8 +35,14 @@ public class Main {
             if (args.length == 1) {
                 runRepl(app, database, dbPath);
             } else {
-                String commandName = args[1];
-                app.run(database, commandName, Arrays.asList(args).subList(2, args.length));
+                // Join remaining args and split on semicolons for multi-command support
+                String input = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+                for (String cmd : input.split(";")) {
+                    cmd = cmd.trim();
+                    if (!cmd.isEmpty()) {
+                        app.runCommand(database, cmd);
+                    }
+                }
             }
         } catch (Exception e) {
             System.err.println("Execution failed: " + e.getMessage());
@@ -54,8 +62,11 @@ public class Main {
             while (true) {
                 System.out.print("aerosql> ");
                 if (!scanner.hasNextLine()) break;
+                String line = scanner.nextLine().trim();
+                if (line.isEmpty()) continue;
+                if (line.equalsIgnoreCase(".exit") || line.equalsIgnoreCase(".quit")) break;
                 try {
-                    app.runCommand(database, scanner.nextLine());
+                    app.runCommand(database, line);
                 } catch (Exception e) {
                     System.err.println("Error: " + e.getMessage());
                 }
