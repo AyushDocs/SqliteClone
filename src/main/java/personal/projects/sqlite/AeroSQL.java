@@ -37,7 +37,7 @@ public class AeroSQL {
 
         final String finalCommandName = baseCommandName;
         Command command = CommandRegistry.get(finalCommandName)
-                .orElseThrow(() -> new CommandNotFound(finalCommandName));
+                .orElseThrow(() -> new CommandNotFound("Unknown command: " + finalCommandName));
 
         try {
             CommandResult result = db.execute(command, actualParameters);

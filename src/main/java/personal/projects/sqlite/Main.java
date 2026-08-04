@@ -47,14 +47,18 @@ public class Main {
         System.out.println("Type SQL or commands. Press " + GREEN + "Ctrl+D" + RESET + " to exit.");
         System.out.println();
 
-        java.io.Console console = System.console();
+        Console console = System.console();
         if (console == null) {
             // Fallback for non-interactive environments
             Scanner scanner = new Scanner(System.in);
             while (true) {
                 System.out.print("aerosql> ");
                 if (!scanner.hasNextLine()) break;
-                app.runCommand(database, scanner.nextLine());
+                try {
+                    app.runCommand(database, scanner.nextLine());
+                } catch (Exception e) {
+                    System.err.println("Error: " + e.getMessage());
+                }
             }
             return;
         }
