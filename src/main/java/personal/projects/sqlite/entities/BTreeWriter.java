@@ -188,15 +188,18 @@ public class BTreeWriter {
         List<TableInteriorCell> cells = update.cells();
         int mid = cells.size() / 2;
         List<TableInteriorCell> left = new ArrayList<>(cells.subList(0, mid));
-        List<TableInteriorCell> right = new ArrayList<>(cells.subList(mid, cells.size()));
+        // cells[mid] is promoted to the left page's right-most pointer, so it must
+        // NOT also be written as a cell on the right page (no duplicate child refs).
+        List<TableInteriorCell> right = new ArrayList<>(cells.subList(mid + 1, cells.size()));
 
-        int leftRightMost = right.get(0).childPage();
+        int leftRightMost = cells.get(mid).childPage();
         int rightRightMost = update.rightMost();
 
         rewriteTableInterior(pageNo, left, leftRightMost);
         int newPage = database.allocatePage();
         rewriteTableInterior(newPage, right, rightRightMost);
-        return new TableSplit(newPage, left.get(left.size() - 1).keyRowId() + 1);
+        // Left page's largest rowid is held by its new right-most pointer.
+        return new TableSplit(newPage, cells.get(mid).keyRowId() + 1);
     }
 
     /**
